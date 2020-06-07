@@ -4753,6 +4753,7 @@ struct CheckLineData
 	bool ThruSpecies;
 	bool ThruActors;
 	int NumPortals;
+	bool HitSelf;
 };
 
 static ETraceStatus CheckLineTrace(FTraceResults &res, void *userdata)
@@ -4766,6 +4767,10 @@ static ETraceStatus CheckLineTrace(FTraceResults &res, void *userdata)
 	if ( res.HitType != TRACE_HitActor )
 	{
 		return TRACE_Stop;
+	}
+	if ( (res.Actor == TData->Caller) && (!TData->HitSelf || (TData->NumPortals == 1)) )
+	{
+		return TRACE_Skip;
 	}
 	if ( (TData->ThruActors) || (TData->ThruSpecies && res.Actor->GetSpecies() == TData->Caller->GetSpecies()) )
 	{
@@ -4784,6 +4789,7 @@ int P_LineTrace(AActor *t1, DAngle angle, double distance,
 	TData.ThruSpecies = !!(flags & TRF_THRUSPECIES);
 	TData.ThruActors = !!(flags & TRF_THRUACTORS);
 	TData.NumPortals = 0;
+	TData.HitSelf = !!(flags & TRF_SELFPORTAL);
 	DVector3 direction;
 	double pc = pitch.Cos();
 	direction = { pc * angle.Cos(), pc * angle.Sin(), -pitch.Sin() };
@@ -4829,7 +4835,7 @@ int P_LineTrace(AActor *t1, DAngle angle, double distance,
 	if ( flags & TRF_NOSKY ) tflags |= TRACE_NoSky;
 
 	// Do trace
-	bool ret = Trace(startpos, t1->Level->PointInSector(startpos), direction, distance, aflags, lflags, t1, trace, tflags, CheckLineTrace, &TData);
+	bool ret = Trace(startpos, t1->Level->PointInSector(startpos), direction, distance, aflags, lflags, NULL, trace, tflags, CheckLineTrace, &TData);
 	if ( outdata )
 	{
 		memset(outdata,0,sizeof(*outdata));
